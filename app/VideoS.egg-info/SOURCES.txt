@@ -1,0 +1,7 @@
+setup.py
+VideoS.egg-info/PKG-INFO
+VideoS.egg-info/SOURCES.txt
+VideoS.egg-info/dependency_links.txt
+VideoS.egg-info/not-zip-safe
+VideoS.egg-info/requires.txt
+VideoS.egg-info/top_level.txt
