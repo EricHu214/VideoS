@@ -3,6 +3,7 @@ import os
 import cv2
 import numpy as np
 import math
+import ffmpeg
 
 
 def LKOpticalFlow(frame1, frame2):
@@ -152,7 +153,7 @@ def MotionBasedStabilization(originalFrames):
 
     stabilizedFrames = warpFrameAlongSmoothPath(originalFrames, kpList, updateMotion[:, 0], updateMotion[:, 1])
 
-    # for visualization
+    ## for visualization
     #for i in range(len(stabilizedFrames) - 1):
     #    kpOld, kpNew = LKOpticalFlow(stabilizedFrames[i], stabilizedFrames[i+1])
 
@@ -202,17 +203,36 @@ def getVideoFrame(vpath):
 def convertFramesToVideo(frames, path, fileName):
   height, width, layers = frames[0].shape
   size = (width,height)
-  out = cv2.VideoWriter(os.path.join(path, fileName),cv2.VideoWriter_fourcc(*'mp4v'), 30, size)
+
+  fourecc = 0x00000021
+  #fourecc = cv2.VideoWriter_fourcc(*'h264')
+
+  out = cv2.VideoWriter(os.path.join(path, fileName), fourecc, 30, size)
 
   for i in range(len(frames)):
       out.write(frames[i])
-  #out.release()
 
-  return out
+  out.release()
 
 def stabilizeVideo(path, filename):
     vpath = os.path.join(path, filename)
 
+    out, _ = (
+        ffmpeg
+        .input(vpath)
+        .output('pipe:', format='rawvideo', pix_fmt='rgb24')
+        .run(capture_stdout=True)
+    )
+    video = (
+        np
+        .frombuffer(out, np.uint8)
+        .reshape([-1, height, width, 3])
+    )
+
+    print(video.shape)
+
+    return
+
     frames = getVideoFrame(vpath)
     stabilizedFrames = MotionBasedStabilization(frames)
-    return convertFramesToVideo(stabilizedFrames, path, "out.mp4")
+    convertFramesToVideo(stabilizedFrames, path, "out.mp4")
