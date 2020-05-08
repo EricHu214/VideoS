@@ -9,7 +9,6 @@ setup(
     include_package_data=True,
     zip_safe=False,
     install_requires=[
-        'ffmpeg',
         'ffmpeg-python',
         'Flask-Migrate>=2.5.3',
         'Flask-SQLAlchemy>=2.4.1',

@@ -55,20 +55,26 @@ def gaussianWeight(t, r, smoothingRadius):
 def warpSingleFrame(frame, kps, x_displacement, y_displacement):
     newkps = []
 
-    pt0 = [
+    pt0 = np.asarray([
         [0, 0],
         [0, frame.shape[1] - 1],
         [frame.shape[0] - 1, 0],
         [frame.shape[0]-1, frame.shape[1] - 1]
-    ]
-    pt1 = [
-        [0 + x_displacement, 0 + y_displacement],
-        [0 + x_displacement, frame.shape[1] - 1 + y_displacement],
-        [frame.shape[0] - 1 + x_displacement, 0 + y_displacement],
-        [frame.shape[0]-1 + x_displacement, frame.shape[1] - 1 + y_displacement]
-    ]
+    ])
 
-    M, mask = cv2.findHomography(np.asarray(pt0), np.asarray(pt1), cv2.RANSAC)
+    displacement = np.asarray([
+        [x_displacement, y_displacement]
+    ])
+    #pt1 = [
+    #    [0 + x_displacement, 0 + y_displacement],
+    #    [0 + x_displacement, frame.shape[1] - 1 + y_displacement],
+    #    [frame.shape[0] - 1 + x_displacement, 0 + y_displacement],
+    #    [frame.shape[0]-1 + x_displacement, frame.shape[1] - 1 + y_displacement]
+    #]
+
+    pt1 = pt0 + displacement
+
+    M, mask = cv2.findHomography(pt0, pt1, cv2.RANSAC)
     warpedFrame = cv2.warpPerspective(frame , M, (frame.shape[1], frame.shape[0]))
 
     return warpedFrame
@@ -204,8 +210,7 @@ def convertFramesToVideo(frames, path, fileName):
   height, width, layers = frames[0].shape
   size = (width,height)
 
-  fourecc = 0x00000021
-  #fourecc = cv2.VideoWriter_fourcc(*'h264')
+  fourecc = cv2.VideoWriter_fourcc(*'mp4v')
 
   out = cv2.VideoWriter(os.path.join(path, fileName), fourecc, 30, size)
 
@@ -217,21 +222,21 @@ def convertFramesToVideo(frames, path, fileName):
 def stabilizeVideo(path, filename):
     vpath = os.path.join(path, filename)
 
-    out, _ = (
-        ffmpeg
-        .input(vpath)
-        .output('pipe:', format='rawvideo', pix_fmt='rgb24')
-        .run(capture_stdout=True)
-    )
-    video = (
-        np
-        .frombuffer(out, np.uint8)
-        .reshape([-1, height, width, 3])
-    )
+    #out, _ = (
+    #    ffmpeg
+    #    .input(vpath)
+    #    .output('pipe:', format='rawvideo', pix_fmt='rgb24')
+    #    .run(capture_stdout=True)
+    #)
+    #video = (
+    #    np
+    #    .frombuffer(out, np.uint8)
+    #    .reshape([-1, height, width, 3])
+    #)
 
-    print(video.shape)
+    #print(video.shape)
 
-    return
+    #return
 
     frames = getVideoFrame(vpath)
     stabilizedFrames = MotionBasedStabilization(frames)
