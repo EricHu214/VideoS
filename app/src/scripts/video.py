@@ -38,23 +38,13 @@ def LKOpticalFlow(frame1, frame2):
 
 # Using the keypoints in the old and new frame, get motion vectors
 def getFeatureMotionVectors(kp, kpNew):
-    x_displacements = []
-    y_displacements = []
-
-    kp_to_motion = {}
-
-    for old, new in zip(kp, kpNew):
-        x_displacements.append(new[0] - old[0])
-        y_displacements.append(new[1] - old[1])
-
-    return np.median(np.asarray(x_displacements)), np.median(np.asarray(y_displacements))
+    disp = kpNew - kp
+    return np.expand_dims(np.median(disp, 0), 0)
 
 def gaussianWeight(t, r, smoothingRadius):
     return np.exp((-9*(r-t)**2)/smoothingRadius**2)
 
-def warpSingleFrame(frame, kps, x_displacement, y_displacement):
-    newkps = []
-
+def warpSingleFrame(frame, kps, disp):
     pt0 = np.asarray([
         [0, 0],
         [0, frame.shape[1] - 1],
@@ -63,14 +53,8 @@ def warpSingleFrame(frame, kps, x_displacement, y_displacement):
     ])
 
     displacement = np.asarray([
-        [x_displacement, y_displacement]
+        [disp[0], disp[1]]
     ])
-    #pt1 = [
-    #    [0 + x_displacement, 0 + y_displacement],
-    #    [0 + x_displacement, frame.shape[1] - 1 + y_displacement],
-    #    [frame.shape[0] - 1 + x_displacement, 0 + y_displacement],
-    #    [frame.shape[0]-1 + x_displacement, frame.shape[1] - 1 + y_displacement]
-    #]
 
     pt1 = pt0 + displacement
 
@@ -79,22 +63,19 @@ def warpSingleFrame(frame, kps, x_displacement, y_displacement):
 
     return warpedFrame
 
-def warpFrameAlongSmoothPath(frames, kps, x_smooth, y_smooth):
+def warpFrameAlongSmoothPath(frames, kps, validFrames, smooth):
     stabilizedFrames = []
 
     print(len(frames), len(kps))
-    for i in range(len(frames) - 1):
-        frame = frames[i]
+    for i in range(len(kps)):
+        frame = frames[validFrames[i]]
         kp = kps[i]
-        x_ = x_smooth[i]
-        y_ = y_smooth[i]
 
-
-        stabilizedFrames.append(warpSingleFrame(frames[i], kps[i], x_smooth[i], y_smooth[i]))
+        stabilizedFrames.append(warpSingleFrame(frames[i], kps[i], smooth[i]))
 
     return stabilizedFrames
 
-def optimizeSinglePath(c, iterations=100, window_size=6):
+def optimizePath(c, iterations=100, window_size=6):
     """
     @param: c is original camera trajectory
     @param: window_size is the hyper-parameter for the smoothness term
@@ -104,90 +85,137 @@ def optimizeSinglePath(c, iterations=100, window_size=6):
             returns an optimized gaussian smooth camera trajectory
     """
     lambda_t = 100
-    p = np.empty_like(c)
 
     W = np.zeros((c.shape[0], c.shape[0]))
     for t in range(W.shape[0]):
-        for r in range(-math.floor(window_size/2), math.floor(window_size/2)+1):
+        for r in range(-window_size//2, window_size//2+1):
             if t+r < 0 or t+r >= W.shape[1] or r == 0:
                 continue
             W[t, t+r] = gaussianWeight(t, t+r, window_size)
 
-    gamma = 1+lambda_t*np.dot(W, np.ones((c.shape[0],)))
+    gamma = np.expand_dims(1 + lambda_t*np.dot(W, np.ones((c.shape[0],))), -1)
 
-    #bar = tqdm(total=c.shape[0]*c.shape[1])
-    Px = np.asarray(c[:, 0])
-    Py = np.asarray(c[:, 1])
+    p = c.copy()
     for iteration in range(iterations):
-        Px = np.divide(c[:, 0]+lambda_t*np.dot(W, Px), gamma)
-        Py = np.divide(c[:, 1]+lambda_t*np.dot(W, Py), gamma)
-    p[:, 0] = np.asarray(Px)
-    p[:, 1] = np.asarray(Py)
-    #bar.update(1)
+        p = np.divide(c+lambda_t*np.dot(W, p), gamma)
 
-    #bar.close()
     return p
 
 def MotionBasedStabilization(originalFrames):
-    x_motion = [0]
-    y_motion = [0]
+    motion = np.zeros((1, 2))
 
     kpList = []
-
-    x_motion_stable = []
-    y_motion_stable = []
+    validFrames = []
 
     for i in range(0, len(originalFrames) - 1):
         kpOld, kpNew = LKOpticalFlow(originalFrames[i], originalFrames[i+1])
 
-        kpList.append(kpOld)
-        x_disp, y_disp = getFeatureMotionVectors(kpOld, kpNew)
-        x_motion.append(x_motion[-1] + x_disp)
-        y_motion.append(y_motion[-1] + y_disp)
+        if kpOld.shape[0] > 0:
+            kpList.append(kpOld)
+            validFrames.append(i)
+            disp = getFeatureMotionVectors(kpOld, kpNew)
+            motion = np.append(motion, motion[-1] + disp, 0)
 
-
-
-    #x_smooth = GaussianMotion(np.asarray(x_motion))
-    #y_smooth = GaussianMotion(np.asarray(y_motion))
-
-    motion = np.empty((len(x_motion), 2))
-    motion[:, 0] = x_motion
-    motion[:, 1] = y_motion
-
-    smoothMotion = optimizeSinglePath(motion)
+    smoothMotion = optimizePath(motion)
     updateMotion = smoothMotion - motion
 
-    stabilizedFrames = warpFrameAlongSmoothPath(originalFrames, kpList, updateMotion[:, 0], updateMotion[:, 1])
+    return warpFrameAlongSmoothPath(originalFrames, kpList, validFrames, updateMotion)
 
-    ## for visualization
-    #for i in range(len(stabilizedFrames) - 1):
-    #    kpOld, kpNew = LKOpticalFlow(stabilizedFrames[i], stabilizedFrames[i+1])
+"================================== Experiment =============================="
+def spatialWarpSingleFrame(frame, kps, displacement):
+    pt0 = np.asarray([
+        [0, 0],
+        [0, frame.shape[1] - 1],
+        [frame.shape[0] - 1, 0],
+        [frame.shape[0]-1, frame.shape[1] - 1]
+    ])
 
-    #    x_disp, y_disp = getFeatureMotionVectors(kpOld, kpNew)
-    #    x_motion_stable.append(x_disp)
-    #    y_motion_stable.append(y_disp)
+    update = np.asarray([
+        [displacement[0], displacement[2]],
+        [displacement[1], displacement[2]],
+        [displacement[0], displacement[3]],
+        [displacement[1], displacement[3]],
+    ])
 
+    pt1 = pt0 + update
+
+    M, mask = cv2.findHomography(pt0, pt1, cv2.RANSAC)
+    warpedFrame = cv2.warpPerspective(frame , M, (frame.shape[1], frame.shape[0]))
+
+    return warpedFrame
+
+def spatialWarpFrameAlongSmoothPath(frames, validFrames, kps, updateMotion):
+    stabilizedFrames = []
+
+    print(len(frames), len(kps))
+
+    for i in range(len(kps)):
+        frame = frames[validFrames[i]]
+        kp = kps[i]
+
+        stabilizedFrames.append(
+            spatialWarpSingleFrame(frames[i], kps[i], updateMotion[i, :])
+        )
 
     return stabilizedFrames
 
+def getFeatureMotionVectorsSpatial(kpOld, kpNew, frameShape):
+    disp = kpNew - kpOld
 
-def getVideoFrame(vpath):
+    left = disp[kpOld[:, 0] < frameShape[1]//2, 0]
+    right = disp[kpOld[:, 0] >= frameShape[1]//2, 0]
+
+    up = disp[kpOld[:, 1] < frameShape[0]//2, 1]
+    down = disp[kpOld[:, 1] >= frameShape[0]//2, 1]
+
+    leftMed = np.median(left) if left.shape[0] > 0 else np.median(disp[:, 0])
+    rightMed = np.median(right) if right.shape[0] > 0 else np.median(disp[:, 0])
+
+    upMed = np.median(up) if up.shape[0] > 0 else np.median(disp[:, 1])
+    downMed = np.median(down) if down.shape[0] > 0 else np.median(disp[:, 1])
+
+    return np.asarray([[leftMed, rightMed, upMed, downMed]])
+
+
+def spatialMotionStabilization(originalFrames):
+    motion = np.zeros((1, 4))
+    kpList = []
+    validFrames = []
+
+    for i in range(0, len(originalFrames) - 1):
+        kpOld, kpNew = LKOpticalFlow(originalFrames[i], originalFrames[i+1])
+
+        if kpOld.shape[0] > 0:
+            kpList.append(kpOld)
+            validFrames.append(i)
+            motionVectors = getFeatureMotionVectorsSpatial(kpOld, kpNew, originalFrames.shape)
+            motion = np.append(motion, motion[-1, :] + motionVectors, 0)
+
+    smoothMotion = optimizePath(motion)
+    updateMotion = smoothMotion - motion
+
+    return spatialWarpFrameAlongSmoothPath(originalFrames, validFrames, kpList, updateMotion)
+    #return originalFrames
+
+"=============================================================================================="
+
+def getVideoFrame(vpath, cap=None):
 
   Framelist = []
-  cap = cv2.VideoCapture(vpath)
-  # Check if camera opened successfully
-  if (cap.isOpened()== False):
-    print("Error opening video stream or file")
+
+  if cap is None:
+      cap = cv2.VideoCapture(vpath)
+      # Check if camera opened successfully
+      if (cap.isOpened() == False):
+        print("Error opening video stream or file")
 
   # Read until video is completed
   while(cap.isOpened()):
     # Capture frame-by-frame
     ret, frame = cap.read()
-    if ret == True:
+    if ret:
       # Display the resulting frame
       Framelist.append(frame)
-      # plt.imshow(frame,cmap='gray')
-      # plt.show()
 
       # Press Q on keyboard to  exit
       if cv2.waitKey(25) & 0xFF == ord('q'):
@@ -204,40 +232,30 @@ def getVideoFrame(vpath):
   cv2.destroyAllWindows()
   finalFramelist = np.array(Framelist)
 
-  return finalFramelist
+  return finalFramelist, cap
 
-def convertFramesToVideo(frames, path, fileName):
+def convertFramesToVideo(frames, path, fileName, out=None):
   height, width, layers = frames[0].shape
   size = (width,height)
 
   fourecc = cv2.VideoWriter_fourcc(*'mp4v')
 
-  out = cv2.VideoWriter(os.path.join(path, fileName), fourecc, 30, size)
+  if out is None:
+      out = cv2.VideoWriter(os.path.join(path, fileName), fourecc, 30, size)
 
   for i in range(len(frames)):
       out.write(frames[i])
 
   out.release()
 
+  return out
+
 def stabilizeVideo(path, filename):
     vpath = os.path.join(path, filename)
+    out = None
+    cap = None
 
-    #out, _ = (
-    #    ffmpeg
-    #    .input(vpath)
-    #    .output('pipe:', format='rawvideo', pix_fmt='rgb24')
-    #    .run(capture_stdout=True)
-    #)
-    #video = (
-    #    np
-    #    .frombuffer(out, np.uint8)
-    #    .reshape([-1, height, width, 3])
-    #)
-
-    #print(video.shape)
-
-    #return
-
-    frames = getVideoFrame(vpath)
+    frames, cap = getVideoFrame(vpath, cap)
+    #stabilizedFrames = spatialMotionStabilization(frames)
     stabilizedFrames = MotionBasedStabilization(frames)
-    convertFramesToVideo(stabilizedFrames, path, "out.mp4")
+    out = convertFramesToVideo(stabilizedFrames, path, "out.mp4", out)

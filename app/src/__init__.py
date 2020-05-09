@@ -11,7 +11,7 @@ app.config["VIDEO_UPLOADS"] = "/mnt/c/Users/Eric/Desktop/side-projects/VideoS-un
 def home():
     return render_template('upload.html')
 
-@app.route('/upload-video', methods=['GET', 'POST'])
+@app.route('/upload-video', methods=['POST'])
 def uploadVideo():
     if request.method == "POST":
         if request.files:
