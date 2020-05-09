@@ -101,8 +101,12 @@ def optimizePath(c, iterations=100, window_size=6):
 
     return p
 
-def MotionBasedStabilization(originalFrames):
-    motion = np.zeros((1, 2))
+def MotionBasedStabilization(originalFrames, motion=None):
+    if len(originalFrames) == 0:
+        return []
+
+    if motion is None:
+        motion = np.zeros((1, 2))
 
     kpList = []
     validFrames = []
@@ -116,10 +120,13 @@ def MotionBasedStabilization(originalFrames):
             disp = getFeatureMotionVectors(kpOld, kpNew)
             motion = np.append(motion, motion[-1] + disp, 0)
 
-    smoothMotion = optimizePath(motion)
-    updateMotion = smoothMotion - motion
+    newMotion = motion[-len(originalFrames):]
+    smoothMotion = optimizePath(newMotion)
+    updateMotion = smoothMotion - newMotion
 
-    return warpFrameAlongSmoothPath(originalFrames, kpList, validFrames, updateMotion)
+    stabilizedFrames = warpFrameAlongSmoothPath(originalFrames, kpList, validFrames, updateMotion)
+
+    return stabilizedFrames
 
 "================================== Experiment =============================="
 def spatialWarpSingleFrame(frame, kps, displacement):
@@ -178,6 +185,9 @@ def getFeatureMotionVectorsSpatial(kpOld, kpNew, frameShape):
 
 
 def spatialMotionStabilization(originalFrames):
+    if len(originalFrames) == 0:
+        return []
+
     motion = np.zeros((1, 4))
     kpList = []
     validFrames = []
@@ -199,9 +209,10 @@ def spatialMotionStabilization(originalFrames):
 
 "=============================================================================================="
 
-def getVideoFrame(vpath, cap=None):
+def getVideoFrame(vpath, cap=None, maxFrames = 300):
 
   Framelist = []
+  index = 0
 
   if cap is None:
       cap = cv2.VideoCapture(vpath)
@@ -210,16 +221,17 @@ def getVideoFrame(vpath, cap=None):
         print("Error opening video stream or file")
 
   # Read until video is completed
-  while(cap.isOpened()):
+  while(cap.isOpened() and index < maxFrames):
     # Capture frame-by-frame
     ret, frame = cap.read()
     if ret:
       # Display the resulting frame
       Framelist.append(frame)
 
+      index += 1
       # Press Q on keyboard to  exit
-      if cv2.waitKey(25) & 0xFF == ord('q'):
-        break
+      if index >= maxFrames:
+        return np.asarray(Framelist), cap
 
     # Break the loop
     else:
@@ -235,18 +247,18 @@ def getVideoFrame(vpath, cap=None):
   return finalFramelist, cap
 
 def convertFramesToVideo(frames, path, fileName, out=None):
-  height, width, layers = frames[0].shape
-  size = (width,height)
+  if out is not None and len(frames) == 0:
+      out.release()
+      return
+  elif out is None and len(frames) > 0:
+      height, width, layers = frames[0].shape
+      size = (width,height)
 
-  fourecc = cv2.VideoWriter_fourcc(*'mp4v')
-
-  if out is None:
+      fourecc = cv2.VideoWriter_fourcc(*'mp4v')
       out = cv2.VideoWriter(os.path.join(path, fileName), fourecc, 30, size)
 
   for i in range(len(frames)):
       out.write(frames[i])
-
-  out.release()
 
   return out
 
@@ -254,8 +266,12 @@ def stabilizeVideo(path, filename):
     vpath = os.path.join(path, filename)
     out = None
     cap = None
+    frames = [0]
+    motion = np.zeros((1, 2))
 
-    frames, cap = getVideoFrame(vpath, cap)
-    #stabilizedFrames = spatialMotionStabilization(frames)
-    stabilizedFrames = MotionBasedStabilization(frames)
-    out = convertFramesToVideo(stabilizedFrames, path, "out.mp4", out)
+    while len(frames) > 0:
+        print("frames processed:", len(frames))
+        frames, cap = getVideoFrame(vpath, cap)
+        #stabilizedFrames = spatialMotionStabilization(frames)
+        stabilizedFrames = MotionBasedStabilization(frames, motion)
+        out = convertFramesToVideo(stabilizedFrames, path, "out.mp4", out)
