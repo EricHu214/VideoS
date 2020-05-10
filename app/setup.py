@@ -12,7 +12,7 @@ setup(
         'Flask-Migrate>=2.5.3',
         'Flask-SQLAlchemy>=2.4.1',
         'Flask>=1.1.2',
-        'numpy',
+        'numpy>= 1.11',
         'opencv-python',
         'PyInquirer>=1.0.3',
         'psycopg2>=2.8.5',

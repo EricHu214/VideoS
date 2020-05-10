@@ -13,8 +13,10 @@ def home():
 
 @app.route('/upload-video', methods=['POST'])
 def uploadVideo():
+    redirect('/')
     if request.method == "POST":
         if request.files:
+
             video = request.files['video']
             path = os.path.join(app.config["VIDEO_UPLOADS"], 'in.mp4')
 
@@ -24,7 +26,7 @@ def uploadVideo():
             stabilize(app.config["VIDEO_UPLOADS"], 'in.mp4', 'out.mp4')
 
             outputPath = os.path.join(app.config["VIDEO_UPLOADS"], 'out.mp4')
-            redirect('/')
+
             return send_file(outputPath, as_attachment=True)
 
 

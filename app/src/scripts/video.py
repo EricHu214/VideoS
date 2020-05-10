@@ -2,6 +2,7 @@ import os
 import cv2
 import numpy as np
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 
 def LKOpticalFlow(frame1, frame2):
@@ -39,9 +40,6 @@ def getFeatureMotionVectors(kp, kpNew):
     disp = kpNew - kp
     return np.expand_dims(np.median(disp, 0), 0)
 
-def gaussianWeight(t, r, smoothingRadius):
-    return np.exp((-9*(r-t)**2)/smoothingRadius**2)
-
 def warpSingleFrame(frame, kps, disp):
     pt0 = np.asarray([
         [0, 0],
@@ -73,68 +71,37 @@ def warpFrameAlongSmoothPath(frames, kps, validFrames, smooth):
 
     return stabilizedFrames
 
+
 def optimizePath(c, iterations=100, window_size=6):
-    """
-    @param: c is original camera trajectory
-    @param: window_size is the hyper-parameter for the smoothness term
-
-    This function was referenced from:
-    https://github.com/sudheerachary/Mesh-Flow-Video-Stabilization
-
-    Returns:
-            returns an optimized gaussian smooth camera trajectory
-    """
-    lambda_t = 100
-
-    W = np.zeros((c.shape[0], c.shape[0]))
-    for t in range(W.shape[0]):
-        for r in range(-window_size//2, window_size//2+1):
-            if t+r < 0 or t+r >= W.shape[1] or r == 0:
-                continue
-            W[t, t+r] = gaussianWeight(t, t+r, window_size)
-
-    gamma = np.expand_dims(1 + lambda_t*np.dot(W, np.ones((c.shape[0],))), -1)
-
-    p = c.copy()
-    for iteration in range(iterations):
-        p = np.divide(c+lambda_t*np.dot(W, p), gamma)
-
-    return p
-
-def optimizePath2(c, iterations=100, window_size=6):
-    """
-    @param: c is original camera trajectory
-    @param: window_size is the hyper-parameter for the smoothness term
-
-
-    Returns:
-            returns an optimized bilateral smooth camera trajectory
-    """
-    lambda_t = 100
+    lambda_t = 5
     t = c.shape[0]
+    alpha = 0.001
 
-
-    alpha = 0.0005
+    # bilateral weights for the sum of differences
     W = np.asarray(
-        [[r, r] for r in range(-window_size//2, window_size//2+1)]
+        [[r] for r in range(-window_size//2, window_size//2+1)]
     )
     W = np.exp((-9*(W)**2)/window_size**2)
 
-    print(W.shape)
-    meanKernal = np.ones((window_size + 1, 2)) / (window_size + 1)
+    # sum of differences kernal for local patches of motion
+    sumDiffKernal = -np.ones((window_size + 1, 1))
+    sumDiffKernal[window_size//2 + 1] = window_size
 
     p = c.copy()
-    gamma = np.expand_dims(1 + lambda_t* W.sum(0) , 0)
 
+    # Iteratively minimize energy function proposed in the MeshFlow paper
+    # using gradient descent
     for iteration in range(iterations):
-        #print(cv2.filter2D(p, -1, meanKernal)[:10])
+        # gradient for local sum of square differences used as a smoothing factor
+        # minimizes big jumps in motion between frames
+        diff = cv2.filter2D(p, -1, sumDiffKernal)
+        smooth = cv2.filter2D(diff, -1, W)
 
-        var = p - cv2.filter2D(p, -1, meanKernal)
-        weighted = cv2.filter2D(var, -1, W)
+        # gradient for the anchor term to keep the optimized motion close to the
+        # original camera path to reduce cropping
+        anchor = p - c
 
-        bi = p - c
-
-        p -= alpha*((p * bi) + (lambda_t * p * var))
+        p -= alpha*((anchor) + (lambda_t * smooth))
 
     return p
 
@@ -314,19 +281,12 @@ def chunkStabilizeVideo(path, filename):
         out = convertFramesToVideo(stabilizedFrames, path, "out.mp4", out)
 
 
-
-
-
-
-
-
-
 class Stabilizer:
     def __init__(self, path, inName, outName):
         self.inPath = os.path.join(path, inName)
         self.outPath = os.path.join(path, outName)
 
-    def saveStabileVideo(self, validFrames, kps, updateMotion):
+    def saveStableVideo(self, validFrames, kps, updateMotion):
         cap = cv2.VideoCapture(self.inPath)
 
         if (cap.isOpened() == False):
@@ -399,7 +359,7 @@ class Stabilizer:
         smoothMotion = optimizePath(motion)
         updateMotion = smoothMotion - motion
 
-        self.saveStabileVideo(validFrames, kpList, updateMotion)
+        self.saveStableVideo(validFrames, kpList, updateMotion)
 
 
 def stabilize(path, inName, outName):
