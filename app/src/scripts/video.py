@@ -1,9 +1,7 @@
 import os
-
 import cv2
 import numpy as np
-import math
-import ffmpeg
+from tqdm import tqdm
 
 
 def LKOpticalFlow(frame1, frame2):
@@ -80,6 +78,8 @@ def optimizePath(c, iterations=100, window_size=6):
     @param: c is original camera trajectory
     @param: window_size is the hyper-parameter for the smoothness term
 
+    This function was referenced from:
+    https://github.com/sudheerachary/Mesh-Flow-Video-Stabilization
 
     Returns:
             returns an optimized gaussian smooth camera trajectory
@@ -98,6 +98,43 @@ def optimizePath(c, iterations=100, window_size=6):
     p = c.copy()
     for iteration in range(iterations):
         p = np.divide(c+lambda_t*np.dot(W, p), gamma)
+
+    return p
+
+def optimizePath2(c, iterations=100, window_size=6):
+    """
+    @param: c is original camera trajectory
+    @param: window_size is the hyper-parameter for the smoothness term
+
+
+    Returns:
+            returns an optimized bilateral smooth camera trajectory
+    """
+    lambda_t = 100
+    t = c.shape[0]
+
+
+    alpha = 0.0005
+    W = np.asarray(
+        [[r, r] for r in range(-window_size//2, window_size//2+1)]
+    )
+    W = np.exp((-9*(W)**2)/window_size**2)
+
+    print(W.shape)
+    meanKernal = np.ones((window_size + 1, 2)) / (window_size + 1)
+
+    p = c.copy()
+    gamma = np.expand_dims(1 + lambda_t* W.sum(0) , 0)
+
+    for iteration in range(iterations):
+        #print(cv2.filter2D(p, -1, meanKernal)[:10])
+
+        var = p - cv2.filter2D(p, -1, meanKernal)
+        weighted = cv2.filter2D(var, -1, W)
+
+        bi = p - c
+
+        p -= alpha*((p * bi) + (lambda_t * p * var))
 
     return p
 
@@ -262,7 +299,7 @@ def convertFramesToVideo(frames, path, fileName, out=None):
 
   return out
 
-def stabilizeVideo(path, filename):
+def chunkStabilizeVideo(path, filename):
     vpath = os.path.join(path, filename)
     out = None
     cap = None
@@ -275,3 +312,96 @@ def stabilizeVideo(path, filename):
         #stabilizedFrames = spatialMotionStabilization(frames)
         stabilizedFrames = MotionBasedStabilization(frames, motion)
         out = convertFramesToVideo(stabilizedFrames, path, "out.mp4", out)
+
+
+
+
+
+
+
+
+
+class Stabilizer:
+    def __init__(self, path, inName, outName):
+        self.inPath = os.path.join(path, inName)
+        self.outPath = os.path.join(path, outName)
+
+    def saveStabileVideo(self, validFrames, kps, updateMotion):
+        cap = cv2.VideoCapture(self.inPath)
+
+        if (cap.isOpened() == False):
+            print("Error opening video stream or file")
+            return
+
+        fourecc = cv2.VideoWriter_fourcc(*'mp4v')
+
+        fps = cap.get(cv2.CAP_PROP_FPS)
+
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        size = (width, height)
+
+        out = cv2.VideoWriter(self.outPath, fourecc, fps, size)
+
+        ret, frame = cap.read()
+
+        for i, valid in enumerate(tqdm(validFrames)):
+            if valid:
+                newFrame = warpSingleFrame(frame, kps[i], updateMotion[i])
+                out.write(newFrame)
+
+            ret, frame = cap.read()
+            i += 1
+
+        cv2.destroyAllWindows()
+        cap.release()
+        out.release()
+
+
+    def estimatedMotionPath(self, kpList, validFrames):
+        cap = cv2.VideoCapture(self.inPath)
+        # Check if camera opened successfully
+        if (cap.isOpened() == False):
+            print("Error opening video stream or file")
+            return
+
+        motion = np.zeros((1, 2))
+        ret, frameOld = cap.read()
+        ret, frameNew = cap.read()
+
+        while ret:
+            kpOld, kpNew = LKOpticalFlow(frameOld, frameNew)
+
+            if kpOld.shape[0] > 0:
+                kpList.append(kpOld)
+                validFrames.append(True)
+                motionVectors = getFeatureMotionVectors(kpOld, kpNew)
+                motion = np.append(motion, motion[-1] + motionVectors, 0)
+            else:
+                validFrames.append(False)
+
+            frameOld = frameNew
+            ret, frameNew = cap.read()
+
+        cap.release()
+        # Closes all the frames
+        cv2.destroyAllWindows()
+
+        return motion
+
+
+    def stabilizeVideo(self):
+        kpList = []
+        validFrames = []
+
+        motion = self.estimatedMotionPath(kpList, validFrames)
+
+        smoothMotion = optimizePath(motion)
+        updateMotion = smoothMotion - motion
+
+        self.saveStabileVideo(validFrames, kpList, updateMotion)
+
+
+def stabilize(path, inName, outName):
+    s = Stabilizer(path, inName, outName)
+    s.stabilizeVideo()

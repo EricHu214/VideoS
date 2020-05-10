@@ -20,8 +20,8 @@ def uploadVideo():
 
             video.save(path)
 
-            from src.scripts.video import stabilizeVideo
-            stabilizeVideo(app.config["VIDEO_UPLOADS"], 'in.mp4')
+            from src.scripts.video import stabilize
+            stabilize(app.config["VIDEO_UPLOADS"], 'in.mp4', 'out.mp4')
 
             outputPath = os.path.join(app.config["VIDEO_UPLOADS"], 'out.mp4')
             redirect('/')
