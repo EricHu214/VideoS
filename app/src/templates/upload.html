@@ -4,9 +4,14 @@
 
     <form class="" action="/upload-video" method="POST" enctype="multipart/form-data">
         <label> Select a Video </label>
-        <br>
+        <br></br>
         <input type="file" name="video" value="" id="video"></input>
-        <br>
+        <br></br>
+        <label>Select Stabilization Factor (the higher the value, the smoother, but possibly more cropping done to the video)</label>
+        <br></br>
+        <label>0</label>
+        <input type="range" min="0" max="10" value="5" class="slider" id="smoothFactor"><label>10</label>
+        <br></br>
         <button type="submit" name="button">Stabilize!</button>
     </form>
 </div>

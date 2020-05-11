@@ -1,11 +1,13 @@
 from flask import Flask, request, redirect, jsonify, render_template, send_file
+from src.scripts.video import stabilize
 import os
 
 
 # init
 app = Flask(__name__)
+
 #app.config["VIDEO_UPLOADS"] = "C:/Users/Eric/Desktop/side projects/VideoS/app/src/static/uploads/"
-app.config["VIDEO_UPLOADS"] = "/mnt/c/Users/Eric/Desktop/side-projects/VideoS-unix/VideoS/app/src/static/uploads/"
+#app.config["VIDEO_UPLOADS"] = "/mnt/c/Users/Eric/Desktop/side-projects/VideoS-unix/VideoS/app/src/static/uploads/"
 
 @app.route('/', methods=['GET'])
 def home():
@@ -16,18 +18,13 @@ def uploadVideo():
     redirect('/')
     if request.method == "POST":
         if request.files:
-
             video = request.files['video']
-            path = os.path.join(app.config["VIDEO_UPLOADS"], 'in.mp4')
+            stabilizedVideo = stabilize(video)
 
-            video.save(path)
-
-            from src.scripts.video import stabilize
-            stabilize(app.config["VIDEO_UPLOADS"], 'in.mp4', 'out.mp4')
-
-            outputPath = os.path.join(app.config["VIDEO_UPLOADS"], 'out.mp4')
-
-            return send_file(outputPath, as_attachment=True)
+            return send_file(
+                stabilizedVideo,
+                attachment_filename="out.mp4",#attachment_filename="stabilized_" + video.filename,
+                as_attachment=True)
 
 
     return redirect('/')

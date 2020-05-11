@@ -13,7 +13,7 @@ setup(
         'Flask-SQLAlchemy>=2.4.1',
         'Flask>=1.1.2',
         'numpy>= 1.11',
-        'opencv-python',
+        'opencv-python>=4.2.0.34',
         'PyInquirer>=1.0.3',
         'psycopg2>=2.8.5',
         'python-dotenv>=0.13.0',

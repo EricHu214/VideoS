@@ -2,8 +2,8 @@ import os
 import cv2
 import numpy as np
 from tqdm import tqdm
-import matplotlib.pyplot as plt
-
+import tempfile
+import io
 
 def LKOpticalFlow(frame1, frame2):
     frame = frame1.copy()
@@ -89,7 +89,7 @@ def optimizePath(c, iterations=100, window_size=6):
 
     p = c.copy()
 
-    # Iteratively minimize energy function proposed in the MeshFlow paper
+    # Iteratively minimize objective function proposed in the MeshFlow paper
     # using gradient descent
     for iteration in range(iterations):
         # gradient for local sum of square differences used as a smoothing factor
@@ -286,7 +286,11 @@ class Stabilizer:
         self.inPath = os.path.join(path, inName)
         self.outPath = os.path.join(path, outName)
 
-    def saveStableVideo(self, validFrames, kps, updateMotion):
+    def cleanFiles(self):
+        os.remove(self.inPath)
+        os.remove(self.outPath)
+
+    def generateStableVideo(self, validFrames, kps, updateMotion):
         cap = cv2.VideoCapture(self.inPath)
 
         if (cap.isOpened() == False):
@@ -295,8 +299,8 @@ class Stabilizer:
 
         fourecc = cv2.VideoWriter_fourcc(*'mp4v')
 
+        # get the info the video needed for the video
         fps = cap.get(cv2.CAP_PROP_FPS)
-
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         size = (width, height)
@@ -305,13 +309,14 @@ class Stabilizer:
 
         ret, frame = cap.read()
 
-        for i, valid in enumerate(tqdm(validFrames)):
+        i = 0
+        for valid in tqdm(validFrames):
             if valid:
                 newFrame = warpSingleFrame(frame, kps[i], updateMotion[i])
                 out.write(newFrame)
+                i += 1
 
             ret, frame = cap.read()
-            i += 1
 
         cv2.destroyAllWindows()
         cap.release()
@@ -359,9 +364,20 @@ class Stabilizer:
         smoothMotion = optimizePath(motion)
         updateMotion = smoothMotion - motion
 
-        self.saveStableVideo(validFrames, kpList, updateMotion)
+        self.generateStableVideo(validFrames, kpList, updateMotion)
 
 
-def stabilize(path, inName, outName):
+def stabilize(videoFile):
+    inName = next(tempfile._get_candidate_names())
+    outName = next(tempfile._get_candidate_names()) + '.mp4'
+    path = "/mnt/c/Users/Eric/Desktop/side-projects/VideoS-unix/VideoS/app/src/static/uploads/"
+
+    videoFile.save(os.path.join(path, inName))
     s = Stabilizer(path, inName, outName)
     s.stabilizeVideo()
+
+    out = open(s.outPath, "rb")
+
+    s.cleanFiles()
+
+    return out
