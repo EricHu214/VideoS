@@ -17,9 +17,11 @@ def home():
 def uploadVideo():
     redirect('/')
     if request.method == "POST":
-        if request.files:
+        if request.files and request.files['video']:
             video = request.files['video']
-            stabilizedVideo = stabilize(video)
+            smoothness = request.form.get('smoothness')
+
+            stabilizedVideo = stabilize(video, smoothness)
 
             return send_file(
                 stabilizedVideo,

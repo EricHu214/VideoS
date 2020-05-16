@@ -95,9 +95,10 @@ def optimizePath(c, iterations=100, window_size=6, lambda_t=5):
 
 
 class Stabilizer:
-    def __init__(self, path, inName, outName):
+    def __init__(self, path, inName, outName, smoothness):
         self.inPath = os.path.join(path, inName)
         self.outPath = os.path.join(path, outName)
+        self.smoothness = smoothness
 
     def cleanFiles(self):
         os.remove(self.inPath)
@@ -174,19 +175,19 @@ class Stabilizer:
 
         motion = self.estimatedMotionPath(kpList, validFrames)
 
-        smoothMotion = optimizePath(motion)
+        smoothMotion = optimizePath(motion, lambda_t=self.smoothness)
         updateMotion = smoothMotion - motion
 
         self.generateStableVideo(validFrames, kpList, updateMotion)
 
 
-def stabilize(videoFile):
+def stabilize(videoFile, smoothness):
     inName = next(tempfile._get_candidate_names())
     outName = next(tempfile._get_candidate_names()) + '.mp4'
     path = "/tmp/"
 
     videoFile.save(os.path.join(path, inName))
-    s = Stabilizer(path, inName, outName)
+    s = Stabilizer(path, inName, outName, int(smoothness))
     s.stabilizeVideo()
 
     out = open(s.outPath, "rb")
