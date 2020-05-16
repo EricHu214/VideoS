@@ -39,6 +39,7 @@ def getFeatureMotionVectors(kp, kpNew):
     disp = kpNew - kp
     return np.expand_dims(np.median(disp, 0), 0)
 
+
 def warpSingleFrame(frame, kps, disp):
     pt0 = np.asarray([
         [0, 0],
@@ -59,8 +60,7 @@ def warpSingleFrame(frame, kps, disp):
     return warpedFrame
 
 
-def optimizePath(c, iterations=100, window_size=6):
-    lambda_t = 5
+def optimizePath(c, iterations=100, window_size=6, lambda_t=5):
     t = c.shape[0]
     alpha = 0.001
 
@@ -87,7 +87,7 @@ def optimizePath(c, iterations=100, window_size=6):
         # gradient for the anchor term to keep the optimized motion close to the
         # original camera path to reduce cropping
         anchor = p - c
-        
+
         p -= alpha*((anchor) + (lambda_t * smooth))
 
     return p
@@ -183,7 +183,7 @@ class Stabilizer:
 def stabilize(videoFile):
     inName = next(tempfile._get_candidate_names())
     outName = next(tempfile._get_candidate_names()) + '.mp4'
-    path = "/mnt/c/Users/Eric/Desktop/side-projects/VideoS-unix/VideoS/app/src/static/uploads/"
+    path = "/tmp/"
 
     videoFile.save(os.path.join(path, inName))
     s = Stabilizer(path, inName, outName)

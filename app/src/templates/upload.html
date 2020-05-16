@@ -1,17 +1,33 @@
-<div class="container">
-    <h1> Upload video </h1>
-    <br>
+{% extends 'index_template.html' %}
 
+{% block content %}
+<div class="mdl-grid">
     <form class="" action="/upload-video" method="POST" enctype="multipart/form-data">
-        <label> Select a Video </label>
-        <br></br>
-        <input type="file" name="video" value="" id="video"></input>
-        <br></br>
-        <label>Select Stabilization Factor (the higher the value, the smoother, but possibly more cropping done to the video)</label>
-        <br></br>
-        <label>0</label>
-        <input type="range" min="0" max="10" value="5" class="slider" id="smoothFactor"><label>10</label>
-        <br></br>
-        <button type="submit" name="button">Stabilize!</button>
+        <div class="file-uploader mdl-color--white mdl-shadow--4dp mdl-cell mdl-cell--12-col mdl-grid">
+            <h5 class="mdl-card__title mdl-color-text--grey-700"><b>Upload Video</b></h5>
+
+            <div class="mdl-card__actions mdl-card--border">
+                <label> Select a Video: </label>
+                <input type="file" name="video" value="" id="video"></input>
+            </div>
+        </div>
+        <div class="stable-slider mdl-color--white mdl-shadow--4dp mdl-cell mdl-cell--12-col mdl-grid">
+            <h5 class="mdl-card__title mdl-color-text--grey-700"><b> Select Stabilization Factor </b></h5>
+
+            <div class="mdl-card__actions mdl-card--border">
+                <label>0</label>
+                <input type="range" min="0" max="10" value="5" class="mdl-slider mdl-js-slider" id="smoothFactor">
+                <label>10</label>
+            </div>
+            <div class="mdl-card__supporting-text mdl-color-text--grey-600">
+                <label>*the higher the value, the smoother the stabilization, but possibly more cropping done to the video</label>
+                <br></br>
+            </div>
+        </div>
+        <div class="md1-cell mdl-grid">
+            <button type="submit" name="button" class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect mdl-color--accent mdl-color-text--white">Stabilize!</button>
+        </div>
     </form>
 </div>
+
+{% endblock %}
