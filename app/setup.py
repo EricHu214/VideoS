@@ -14,6 +14,7 @@ setup(
         'opencv-python>=4.2.0.34',
         'PyInquirer>=1.0.3',
         'python-dotenv>=0.13.0',
+        'pytube3',
         'tqdm'
     ],
 )

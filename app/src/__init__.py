@@ -1,5 +1,5 @@
 from flask import Flask, request, redirect, jsonify, render_template, send_file
-from app.src.scripts.video import stabilize
+from src.scripts.video import stabilize, stabilizeYoutube
 import os
 
 
@@ -25,6 +25,16 @@ def uploadVideo():
                 stabilizedVideo,
                 #attachment_filename="out.mp4",
                 attachment_filename="stabilized_" + video.filename,
+                as_attachment=True)
+
+        elif request.form.get('video-url'):
+            smoothness = request.form.get('smoothness')
+            stabilizedVideo = stabilizeYoutube(request.form.get('video-url'), smoothness)
+
+            return send_file(
+                stabilizedVideo,
+                attachment_filename="out.mp4",
+                #attachment_filename="stabilized_" + video.filename,
                 as_attachment=True)
 
 

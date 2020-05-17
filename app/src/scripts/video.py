@@ -1,6 +1,7 @@
 import os
 import cv2
 import numpy as np
+from pytube import YouTube
 from tqdm import tqdm
 import tempfile
 
@@ -187,6 +188,20 @@ def stabilize(videoFile, smoothness):
     path = "/tmp/"
 
     videoFile.save(os.path.join(path, inName))
+    s = Stabilizer(path, inName, outName, int(smoothness))
+    s.stabilizeVideo()
+
+    out = open(s.outPath, "rb")
+
+    s.cleanFiles()
+
+    return out
+
+def stabilizeYoutube(youtubeurl, smoothness):
+    path = "/tmp/"
+    inName = YouTube(youtubeurl).streams.first().download(path)
+    outName = next(tempfile._get_candidate_names()) + '.mp4'
+
     s = Stabilizer(path, inName, outName, int(smoothness))
     s.stabilizeVideo()
 
