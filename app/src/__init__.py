@@ -6,8 +6,6 @@ import os
 # init
 app = Flask(__name__)
 
-#app.config["VIDEO_UPLOADS"] = "C:/Users/Eric/Desktop/side projects/VideoS/app/src/static/uploads/"
-#app.config["VIDEO_UPLOADS"] = "/mnt/c/Users/Eric/Desktop/side-projects/VideoS-unix/VideoS/app/src/static/uploads/"
 
 @app.route('/', methods=['GET'])
 def home():
@@ -25,7 +23,8 @@ def uploadVideo():
 
             return send_file(
                 stabilizedVideo,
-                attachment_filename="out.mp4",#attachment_filename="stabilized_" + video.filename,
+                #attachment_filename="out.mp4",
+                attachment_filename="stabilized_" + video.filename,
                 as_attachment=True)
 
 

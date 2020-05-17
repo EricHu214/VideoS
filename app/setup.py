@@ -9,13 +9,10 @@ setup(
     include_package_data=True,
     zip_safe=False,
     install_requires=[
-        'Flask-Migrate>=2.5.3',
-        'Flask-SQLAlchemy>=2.4.1',
         'Flask>=1.1.2',
         'numpy>= 1.11',
         'opencv-python>=4.2.0.34',
         'PyInquirer>=1.0.3',
-        'psycopg2>=2.8.5',
         'python-dotenv>=0.13.0',
         'tqdm'
     ],
