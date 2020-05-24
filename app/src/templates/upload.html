@@ -3,7 +3,7 @@
 {% block content %}
 <div class="mdl-grid">
     <form action="/upload-video" method="POST" enctype="multipart/form-data">
-        <div class="file-uploader mdl-color--white mdl-shadow--4dp mdl-cell mdl-cell--12-col mdl-grid">
+        <div class="file-uploader mdl-color--white mdl-shadow--3dp mdl-cell mdl-cell--12-col mdl-grid">
             <h5 class="mdl-card__title mdl-color-text--grey-700"><b>Upload Video</b></h5>
 
             <div class="mdl-card__actions mdl-card--border">
@@ -14,14 +14,14 @@
                 <input type="text" name="video-url" value=""></input>
             </div>
         </div>
-        <div class="stable-slider mdl-color--white mdl-shadow--4dp mdl-cell mdl-cell--12-col mdl-grid">
+        <div class="stable-slider mdl-color--white mdl-shadow--3dp mdl-cell mdl-cell--12-col mdl-grid">
             <h5 class="mdl-card__title mdl-color-text--grey-700"><b> Select Stabilization Factor </b></h5>
 
             <div class="mdl-card__actions mdl-card--border">
                 <div class="mdl-layout__header-row">
                 <label>1</label>
-                <input type="range" min="1" max="10" value="5" class="mdl-slider mdl-js-slider" name="smoothness" id="smoothslider">
-                <label>10</label>
+                <input type="range" min="1" max="100" value="10" class="mdl-slider mdl-js-slider" name="smoothness" id="smoothslider">
+                <label>100</label>
                 </div>
             </div>
             <div class="mdl-card__supporting-text mdl-color-text--grey-600">

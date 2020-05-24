@@ -29,7 +29,7 @@ def LKOpticalFlow(frame1, frame2):
         kp1,
         None,
         winSize  = (15, 15),
-        maxLevel = 2,
+        maxLevel = 4,
         criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 20, 0.03))
 
     #print(kp1.shape, st.shape)
@@ -40,6 +40,17 @@ def getFeatureMotionVectors(kp, kpNew):
     disp = kpNew - kp
     return np.expand_dims(np.median(disp, 0), 0)
 
+
+def motionVectorVisualization(KpO, KpN, frame):
+  visualizedFrame = frame.copy()
+
+  for i in range(KpO.shape[0]):
+    ptO = np.floor(KpO[i]).astype(int)
+    ptN = np.floor(KpN[i]).astype(int)
+
+    visualizedFrame = cv2.line(visualizedFrame, tuple(ptO.tolist()), tuple(ptN.tolist()), (0, 255, 0), 3)
+
+  return visualizedFrame
 
 def warpSingleFrame(frame, kps, disp):
     pt0 = np.asarray([
@@ -63,7 +74,8 @@ def warpSingleFrame(frame, kps, disp):
 
 def optimizePath(c, iterations=100, window_size=6, lambda_t=5):
     t = c.shape[0]
-    alpha = 0.001
+    alpha = 0.0001
+    #beta = 0.9
 
     # bilateral weights for the sum of differences
     W = np.asarray(
@@ -73,7 +85,7 @@ def optimizePath(c, iterations=100, window_size=6, lambda_t=5):
 
     # sum of differences kernal for local patches of motion
     sumDiffKernal = -np.ones((window_size + 1, 1))
-    sumDiffKernal[window_size//2 + 1] = window_size
+    sumDiffKernal[window_size//2 + 1] = window_size + 1
 
     p = c.copy()
 
@@ -93,7 +105,26 @@ def optimizePath(c, iterations=100, window_size=6, lambda_t=5):
 
     return p
 
+def bilateral(r, smoothingRadius):
+    return np.exp((-9*(r)**2)/smoothingRadius**2)
 
+def optimizeMotionCurve(c, iters=100, window=6, lambda_t=5):
+    t_max = c.shape[0]
+
+    # a bilatera kernal to give higher weight to frames closer to the current frame
+    W = np.asarray(
+        [[bilateral(r, window)] for r in range(-window//2, window//2+1)]
+    )
+
+    # iterative jacobi method for minimizing the quadratic formula used to
+    # quantify smoothness of a video
+    p = c.copy()
+    g = 1 + (2 * lambda_t * np.expand_dims(W.sum(axis=0), 0))
+
+    for i in range(iters):
+        p = (c + (2 * lambda_t * cv2.filter2D(p, -1, W)))/g
+
+    return p
 
 class Stabilizer:
     def __init__(self, path, inName, outName, smoothness):
@@ -127,9 +158,12 @@ class Stabilizer:
         i = 0
         for valid in tqdm(validFrames):
             if valid:
-                newFrame = warpSingleFrame(frame, kps[i], updateMotion[i])
+                #newFrame = motionVectorVisualization(kps[i][0], kps[i][1], frame)
+                newFrame = warpSingleFrame(frame, kps[i][0], updateMotion[i])
                 out.write(newFrame)
                 i += 1
+            else:
+                out.write(frame)
 
             ret, frame = cap.read()
 
@@ -150,14 +184,17 @@ class Stabilizer:
         ret, frameNew = cap.read()
 
         while ret:
-            kpOld, kpNew = LKOpticalFlow(frameOld, frameNew)
+            try:
+                kpOld, kpNew = LKOpticalFlow(frameOld, frameNew)
 
-            if kpOld.shape[0] > 0:
-                kpList.append(kpOld)
-                validFrames.append(True)
-                motionVectors = getFeatureMotionVectors(kpOld, kpNew)
-                motion = np.append(motion, motion[-1] + motionVectors, 0)
-            else:
+                if kpOld.shape[0] > 0:
+                    kpList.append((kpOld, kpNew))
+                    validFrames.append(True)
+                    motionVectors = getFeatureMotionVectors(kpOld, kpNew)
+                    motion = np.append(motion, motion[-1] + motionVectors, 0)
+                else:
+                    validFrames.append(False)
+            except:
                 validFrames.append(False)
 
             frameOld = frameNew
@@ -175,9 +212,13 @@ class Stabilizer:
         validFrames = []
 
         motion = self.estimatedMotionPath(kpList, validFrames)
-
-        smoothMotion = optimizePath(motion, lambda_t=self.smoothness)
+        smoothMotion = optimizeMotionCurve(motion, lambda_t=self.smoothness)
+        smoothMotion2 = optimizePath(motion, lambda_t=self.smoothness)
         updateMotion = smoothMotion - motion
+
+        np.savetxt("output/motion.txt", motion)
+        np.savetxt("output/smoothMotion.txt", smoothMotion)
+        np.savetxt("output/smoothMotion2.txt", smoothMotion2)
 
         self.generateStableVideo(validFrames, kpList, updateMotion)
 
