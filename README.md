@@ -1,6 +1,10 @@
 ## VideoS
 A Flask Based video stabilizer to upload a video and have it stabilized. This is a loose implementation of video stabilization based on the MeshFlow paper. This is a simpler approach with much less computation compared to the method described in the paper, but still delivers good results. Since this is a 2D feature point tracking implementation, this will produce subpar results on videos with many moving objects or videos with little to no distinct features (e.g a flat wall)
 
+## Access Deployed Server
+The webapp can be accessed at:
+https://videos-279100.uc.r.appspot.com/
+
 ## How to run this development server
 - clone repo
 - setup a virtual environment (something like python venv)
