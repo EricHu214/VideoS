@@ -1,5 +1,5 @@
 from flask import Flask, request, redirect, jsonify, render_template, send_file
-from src.scripts.video import stabilize, stabilizeYoutube
+from app.src.modules import stabilize, stabilizeYoutube
 import os
 
 

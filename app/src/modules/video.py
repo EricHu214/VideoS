@@ -167,7 +167,7 @@ class Stabilizer:
 
             ret, frame = cap.read()
 
-        cv2.destroyAllWindows()
+        #cv2.destroyAllWindows()
         cap.release()
         out.release()
 
@@ -202,7 +202,7 @@ class Stabilizer:
 
         cap.release()
         # Closes all the frames
-        cv2.destroyAllWindows()
+        #cv2.destroyAllWindows()
 
         return motion
 
@@ -216,9 +216,9 @@ class Stabilizer:
         smoothMotion2 = optimizePath(motion, lambda_t=self.smoothness)
         updateMotion = smoothMotion - motion
 
-        np.savetxt("output/motion.txt", motion)
-        np.savetxt("output/smoothMotion.txt", smoothMotion)
-        np.savetxt("output/smoothMotion2.txt", smoothMotion2)
+        #np.savetxt("output/motion.txt", motion)
+        #np.savetxt("output/smoothMotion.txt", smoothMotion)
+        #np.savetxt("output/smoothMotion2.txt", smoothMotion2)
 
         self.generateStableVideo(validFrames, kpList, updateMotion)
 

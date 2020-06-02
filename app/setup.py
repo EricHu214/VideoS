@@ -10,8 +10,9 @@ setup(
     zip_safe=False,
     install_requires=[
         'Flask>=1.1.2',
+        'gunicorn>=20.0.4',
         'numpy>= 1.11',
-        'opencv-python>=4.2.0.34',
+        'opencv-python-headless>=4.2.0.34',
         'PyInquirer>=1.0.3',
         'python-dotenv>=0.13.0',
         'pytube3',
