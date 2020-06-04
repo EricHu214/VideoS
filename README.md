@@ -9,8 +9,8 @@ https://videos-279100.uc.r.appspot.com/
 - clone repo
 - setup a virtual environment (something like python venv)
 - "python3 setup.py install" to install all the dependencies in the virtual environment
-- "flask run" 
-- navigate to "localhost:5000" to use
+- "flask run" in root folder of project
+- navigate to "localhost:8080" to use
 
 ## Reference
 Ported from: 
