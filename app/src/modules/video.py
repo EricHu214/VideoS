@@ -52,7 +52,7 @@ def motionVectorVisualization(KpO, KpN, frame):
 
   return visualizedFrame
 
-def warpSingleFrame(frame, kps, disp):
+def warpSingleFrame(frame, disp):
     pt0 = np.asarray([
         [0, 0],
         [0, frame.shape[1] - 1],
@@ -108,7 +108,7 @@ def optimizePath(c, iterations=100, window_size=6, lambda_t=5):
 def bilateral(r, smoothingRadius):
     return np.exp((-9*(r)**2)/smoothingRadius**2)
 
-def optimizeMotionCurve(c, iters=100, window=6, lambda_t=5):
+def optimizeMotionCurve(c, iters=100, window=6, lambda_t=500):
     t_max = c.shape[0]
 
     # a bilatera kernal to give higher weight to frames closer to the current frame
@@ -127,16 +127,16 @@ def optimizeMotionCurve(c, iters=100, window=6, lambda_t=5):
     return p
 
 class Stabilizer:
-    def __init__(self, path, inName, outName, smoothness):
+    def __init__(self, path, inName, outName, cropPercentage):
         self.inPath = os.path.join(path, inName)
         self.outPath = os.path.join(path, outName)
-        self.smoothness = smoothness
+        self.cropFactor = cropPercentage / 100.0
 
     def cleanFiles(self):
         os.remove(self.inPath)
         os.remove(self.outPath)
 
-    def generateStableVideo(self, validFrames, kps, updateMotion):
+    def generateStableVideo(self, updateMotion):
         cap = cv2.VideoCapture(self.inPath)
 
         if (cap.isOpened() == False):
@@ -147,32 +147,41 @@ class Stabilizer:
 
         # get the info the video needed for the video
         fps = cap.get(cv2.CAP_PROP_FPS)
-        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        size = (width, height)
+        originalWidth = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        originalHeight = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+        cropWidthOffset = int((originalWidth * self.cropFactor) // 2)
+        cropHeightOffset = int((originalHeight * self.cropFactor) // 2)
+
+        size = (originalWidth - (2 * cropWidthOffset), \
+                originalHeight - (2 * cropHeightOffset))
+
+        #print(size, originalWidth, originalHeight, cropWidthOffset, cropHeightOffset, self.cropFactor)
 
         out = cv2.VideoWriter(self.outPath, fourecc, fps, size)
 
         ret, frame = cap.read()
 
         i = 0
-        for valid in tqdm(validFrames):
-            if valid:
-                #newFrame = motionVectorVisualization(kps[i][0], kps[i][1], frame)
-                newFrame = warpSingleFrame(frame, kps[i][0], updateMotion[i])
-                out.write(newFrame)
-                i += 1
-            else:
-                out.write(frame)
+        for m in tqdm(updateMotion):
+            #newFrame = motionVectorVisualization(kps[i][0], kps[i][1], frame)
+            newFrame = warpSingleFrame(frame, updateMotion[i])
+            croppedFrame = newFrame[cropHeightOffset : originalHeight - cropHeightOffset,\
+                                    cropWidthOffset : originalWidth - cropWidthOffset]
+
+            #print(newFrame.shape, croppedFrame.shape, size, cropWidthOffset, cropHeightOffset)
+            out.write(croppedFrame)
 
             ret, frame = cap.read()
+
+            i += 1
 
         #cv2.destroyAllWindows()
         cap.release()
         out.release()
 
 
-    def estimatedMotionPath(self, kpList, validFrames):
+    def estimatedMotionPath(self):
         cap = cv2.VideoCapture(self.inPath)
         # Check if camera opened successfully
         if (cap.isOpened() == False):
@@ -188,14 +197,12 @@ class Stabilizer:
                 kpOld, kpNew = LKOpticalFlow(frameOld, frameNew)
 
                 if kpOld.shape[0] > 0:
-                    kpList.append((kpOld, kpNew))
-                    validFrames.append(True)
                     motionVectors = getFeatureMotionVectors(kpOld, kpNew)
-                    motion = np.append(motion, motion[-1] + motionVectors, 0)
+                    motion = np.append(motion, motion[[-1]] + motionVectors, 0)
                 else:
-                    validFrames.append(False)
+                    motion = np.append(motion, motion[[-1]], 0)
             except:
-                validFrames.append(False)
+                motion = np.append(motion, motion[[-1]], 0)
 
             frameOld = frameNew
             ret, frameNew = cap.read()
@@ -208,28 +215,26 @@ class Stabilizer:
 
 
     def stabilizeVideo(self):
-        kpList = []
-        validFrames = []
-
-        motion = self.estimatedMotionPath(kpList, validFrames)
-        smoothMotion = optimizeMotionCurve(motion, lambda_t=self.smoothness)
-        smoothMotion2 = optimizePath(motion, lambda_t=self.smoothness)
+        motion = self.estimatedMotionPath()
+        smoothMotion = optimizeMotionCurve(motion)
+        smoothMotion2 = optimizePath(motion)
         updateMotion = smoothMotion - motion
 
+        ## Just for visualizations
         #np.savetxt("output/motion.txt", motion)
         #np.savetxt("output/smoothMotion.txt", smoothMotion)
         #np.savetxt("output/smoothMotion2.txt", smoothMotion2)
 
-        self.generateStableVideo(validFrames, kpList, updateMotion)
+        self.generateStableVideo(updateMotion)
 
 
-def stabilize(videoFile, smoothness):
+def stabilize(videoFile, cropPercentage):
     inName = next(tempfile._get_candidate_names())
     outName = next(tempfile._get_candidate_names()) + '.mp4'
     path = "/tmp/"
 
     videoFile.save(os.path.join(path, inName))
-    s = Stabilizer(path, inName, outName, int(smoothness))
+    s = Stabilizer(path, inName, outName, int(cropPercentage))
     s.stabilizeVideo()
 
     out = open(s.outPath, "rb")
@@ -238,12 +243,13 @@ def stabilize(videoFile, smoothness):
 
     return out
 
-def stabilizeYoutube(youtubeurl, smoothness):
+def stabilizeYoutube(youtubeurl, cropPercentage):
     path = "/tmp/"
-    inName = YouTube(youtubeurl).streams.first().download(path)
+    inName = next(tempfile._get_candidate_names())
+    inName = YouTube(youtubeurl).streams.first().download(output_path=path, filename=inName)
     outName = next(tempfile._get_candidate_names()) + '.mp4'
 
-    s = Stabilizer(path, inName, outName, int(smoothness))
+    s = Stabilizer(path, inName, outName, int(cropPercentage))
     s.stabilizeVideo()
 
     out = open(s.outPath, "rb")

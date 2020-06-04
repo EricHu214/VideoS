@@ -17,25 +17,28 @@ def uploadVideo():
     if request.method == "POST":
         if request.files and request.files['video']:
             video = request.files['video']
-            smoothness = request.form.get('smoothness')
 
-            stabilizedVideo = stabilize(video, smoothness)
+            if video.content_type == "video/mp4":
+                cropPercentage = request.form.get('crop_percentage')
+                stabilizedVideo = stabilize(video, cropPercentage)
 
-            return send_file(
-                stabilizedVideo,
-                #attachment_filename="out.mp4",
-                attachment_filename="stabilized_" + video.filename,
-                as_attachment=True)
+                return send_file(
+                    stabilizedVideo,
+                    #attachment_filename="out.mp4",
+                    attachment_filename="stabilized_" + video.filename,
+                    as_attachment=True,
+                    mimetype='video/mp4')
 
         elif request.form.get('video-url'):
-            smoothness = request.form.get('smoothness')
-            stabilizedVideo = stabilizeYoutube(request.form.get('video-url'), smoothness)
+            cropPercentage = request.form.get('crop_percentage')
+            stabilizedVideo = stabilizeYoutube(request.form.get('video-url'), cropPercentage)
 
             return send_file(
                 stabilizedVideo,
-                attachment_filename="out.mp4",
+                attachment_filename="stabilized.mp4",
                 #attachment_filename="stabilized_" + video.filename,
-                as_attachment=True)
+                as_attachment=True,
+                mimetype='video/mp4')
 
 
     return redirect('/')
