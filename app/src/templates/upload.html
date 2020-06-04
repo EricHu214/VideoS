@@ -2,7 +2,7 @@
 
 {% block content %}
 
-<div class="mdl-grid">
+<div class="">
     <script type="text/javascript">
         function changeSelection(selected) {
             var option1 = document.getElementById("upload")
@@ -27,6 +27,8 @@
         $(document).ready(function() {
             $('#form').submit(function(e) {
                 e.preventDefault();
+
+                loadingSpinner();
 
                 fetch($(this).attr('action'), {
                     body: $(this).serialize(),
@@ -56,8 +58,14 @@
             });
         });
     </script>
-    <form id="form" action="/upload-video" method="POST" enctype="multipart/form-data">
-        <div class="file-uploader mdl-color--white mdl-shadow--3dp mdl-cell mdl-cell--12-col mdl-grid">
+
+    <style media="screen">
+        .content {
+            width:100vh;
+        }
+    </style>
+    <form  id="form" action="/upload-video" method="POST" enctype="multipart/form-data">
+        <div class="content file-uploader mdl-color--white mdl-shadow--3dp mdl-card mdl-grid">
             <h5 class="mdl-card__title mdl-color-text--grey-700"><b>Choose a Video</b></h5>
 
             <div class="mdl-card__actions mdl-card--border">
@@ -81,7 +89,8 @@
                 <input type="text" name="video-url" value=""></input>
             </div>
         </div>
-        <div class="stable-slider mdl-color--white mdl-shadow--3dp mdl-cell mdl-cell--12-col mdl-grid">
+        <div class="mdl-cell"></div>
+        <div class="content stable-slider mdl-color--white mdl-shadow--3dp mdl-card mdl-grid">
             <h5 class="mdl-card__title mdl-color-text--grey-700"><b> Select Cropping Percentage </b></h5>
 
             <div class="mdl-card__actions mdl-card--border">
@@ -98,10 +107,9 @@
         </div>
         <div class="md1-cell mdl-grid">
 
-            <button type="submit" onClick="loadingSpinner()" name="button" class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect mdl-color--accent mdl-color-text--white">
+            <button type="submit" name="button" class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect mdl-color--accent mdl-color-text--white">
                 Stabilize!
             </button>
-            <!-- MDL Spinner Component -->
             <div id="spinner" class="mdl-cell" style="display:none">
                 <div class="mdl-spinner mdl-js-spinner is-active"></div>
             </div>
