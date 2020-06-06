@@ -23,6 +23,11 @@
             spinner.style.display = "block";
         }
 
+        function updateSlider(cropValue) {
+            document.getElementById("slider-value").innerHTML = cropValue + "%";
+            console.log("slider value " + cropValue);
+        }
+
 
         $(document).ready(function() {
             $('#form').submit(function(e) {
@@ -65,27 +70,40 @@
         }
     </style>
     <form  id="form" action="/upload-video" method="POST" enctype="multipart/form-data">
+        <div class="content about mdl-color--white mdl-shadow--3dp mdl-card mdl-grid">
+            <h5 class="mdl-card__title mdl-color-text--grey-700"><b>About</b></h5>
+            <div class="mdl-card__actions mdl-color-text--grey-700 mdl-card--border">
+                This is a video stabilizer that takes shaky videos and stabilizes it using a 2D feature point tracking method.
+
+                <br>
+                Here's a sample video you can use as a test:
+                <a href="https://www.youtube.com/watch?v=IBvZD689QR4" target="_blank">
+                    https://www.youtube.com/watch?v=IBvZD689QR4
+                </a>
+            </div>
+        </div>
+        <div class="mdl-cell"></div>
         <div class="content file-uploader mdl-color--white mdl-shadow--3dp mdl-card mdl-grid">
             <h5 class="mdl-card__title mdl-color-text--grey-700"><b>Choose a Video</b></h5>
 
             <div class="mdl-card__actions mdl-card--border">
                 <label class="mdl-radio mdl-js-radio mdl-js-ripple-effect" for="video-option-1">
                   <input type="radio" onClick="changeSelection(1)" id="video-option-1" class="mdl-radio__button" name="options" value="1" checked>
-                  <span class="mdl-radio__label">Upload</span>
+                  <span class="mdl-radio__label mdl-color-text--grey-700">Upload</span>
                 </label>
                 <label class="mdl-radio mdl-js-radio mdl-js-ripple-effect" for="video-option-2">
                   <input type="radio" onClick="changeSelection(2)" id="video-option-2" class="mdl-radio__button" name="options" value="2">
-                  <span class="mdl-radio__label">YouTube</span>
+                  <span class="mdl-radio__label mdl-color-text--grey-700">YouTube</span>
                 </label>
             </div>
             <div class="mdl-cell"></div>
             <div id="upload" class="mdl-card__actions">
-                <label> Select a Video: </label>
+                <label class="mdl-color-text--grey-700"> Select a Video: </label>
                 <input type="file" name="video" value="" id="video"></input>
             </div>
 
             <div id="youtube" class="mdl-card__actions" style="display:none">
-                <label> YouTube URL </label>
+                <label class="mdl-color-text--grey-700"> YouTube URL </label>
                 <input type="text" name="video-url" value=""></input>
             </div>
         </div>
@@ -94,15 +112,24 @@
             <h5 class="mdl-card__title mdl-color-text--grey-700"><b> Select Cropping Percentage </b></h5>
 
             <div class="mdl-card__actions mdl-card--border">
+                <!--<div id="tt2" class="icon material-icons">print</div>-->
+                <div class="mdl-tooltip mdl-tooltip--large" for="crop-slider">
+                    <div id="slider-value" class="">
+                        10%
+                    </div>
+                </div>
                 <div class="mdl-layout__header-row">
-                <label>0%</label>
-                <input type="range" min="0" max="80" value="10" class="mdl-slider mdl-js-slider" name="crop_percentage" id="crop_percentage">
-                <label>80%</label>
+                <label class="mdl-color-text--grey-700">0%</label>
+                <input id="crop-slider" type="range" oninput="updateSlider(this.value)" min="0" max="60" value="10" class="mdl-slider mdl-js-slider" name="crop_percentage" id="crop_percentage">
+                <label class="mdl-color-text--grey-700">60%</label>
                 </div>
             </div>
-            <div class="mdl-card__supporting-text mdl-color-text--grey-600">
-                <label>*The stabilization process creates black borders from warping the frames. Cropping the video reduces these black borders, but will decrease overall resolution of the video</label>
-                <br></br>
+            <div class="mdl-card__supporting-text mdl-color-text--grey-500">
+                <label>
+                    *This slider specifies how much of the video to crop out. The higher the number the more zoomed in the resulting video will look.
+                    Stabilization creates black borders from the frame warping, so this is to reduce its visibility.
+                </label>
+
             </div>
         </div>
         <div class="md1-cell mdl-grid">
