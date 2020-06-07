@@ -5,8 +5,8 @@
 <div class="">
     <script type="text/javascript">
         function changeSelection(selected) {
-            var option1 = document.getElementById("upload")
-            var option2 = document.getElementById("youtube")
+            var option1 = document.getElementById("youtube");
+            var option2 = document.getElementById("upload");
 
             if (selected === 1) {
                 option1.style.display = "block";
@@ -24,23 +24,25 @@
         }
 
         function updateSlider(cropValue) {
+            document.getElementById("tooltip").style.display = "block";
             document.getElementById("slider-value").innerHTML = cropValue + "%";
-            console.log("slider value " + cropValue);
+        }
+
+        function updateFileName(path) {
+            var filename = path.replace(/^.*[\\\/]/, '');
+
+            document.getElementById("filename").innerHTML = filename;
         }
 
 
         $(document).ready(function() {
             $('#form').submit(function(e) {
                 e.preventDefault();
-
                 loadingSpinner();
 
                 fetch($(this).attr('action'), {
-                    body: $(this).serialize(),
-                    method: $(this).attr('method'),
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded'
-                    },
+                    body: new FormData(this),
+                    method: $(this).attr('method')
                 })
                 .then(response => response.blob())
                 .then(response => {
@@ -74,7 +76,8 @@
             <h5 class="mdl-card__title mdl-color-text--grey-700"><b>About</b></h5>
             <div class="mdl-card__actions mdl-color-text--grey-700 mdl-card--border">
                 This is a video stabilizer that takes shaky videos and stabilizes it using a 2D feature point tracking method.
-
+                <br>
+                The YouTube option is only 360p to keep hosting costs down.
                 <br>
                 Here's a sample video you can use as a test:
                 <a href="https://www.youtube.com/watch?v=IBvZD689QR4" target="_blank">
@@ -89,22 +92,28 @@
             <div class="mdl-card__actions mdl-card--border">
                 <label class="mdl-radio mdl-js-radio mdl-js-ripple-effect" for="video-option-1">
                   <input type="radio" onClick="changeSelection(1)" id="video-option-1" class="mdl-radio__button" name="options" value="1" checked>
-                  <span class="mdl-radio__label mdl-color-text--grey-700">Upload</span>
+                  <span class="mdl-radio__label mdl-color-text--grey-700">YouTube</span>
                 </label>
                 <label class="mdl-radio mdl-js-radio mdl-js-ripple-effect" for="video-option-2">
                   <input type="radio" onClick="changeSelection(2)" id="video-option-2" class="mdl-radio__button" name="options" value="2">
-                  <span class="mdl-radio__label mdl-color-text--grey-700">YouTube</span>
+                  <span class="mdl-radio__label mdl-color-text--grey-700">Upload</span>
                 </label>
             </div>
-            <div class="mdl-cell"></div>
-            <div id="upload" class="mdl-card__actions">
-                <label class="mdl-color-text--grey-700"> Select a Video: </label>
-                <input type="file" name="video" value="" id="video"></input>
+
+            <div id="youtube" class="mdl-card__actions">
+                <div class="mdl-textfield mdl-js-textfield">
+                <input type="text" id="video-url" class="mdl-textfield__input" name="video-url" value=""></input>
+                <label class="mdl-textfield__label mdl-color-text--grey-500" for="video-url"> YouTube URL </label>
+                </div>
             </div>
 
-            <div id="youtube" class="mdl-card__actions" style="display:none">
-                <label class="mdl-color-text--grey-700"> YouTube URL </label>
-                <input type="text" name="video-url" value=""></input>
+            <div id="upload" class="mdl-card__actions" style="display:none">
+                <div class="mdl-cell"></div>
+                <Label class="input-custom-file mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect mdl-button--primary">
+                  ADD FILE
+                  <input id="file-input" onchange="updateFileName(this.value)" type="file" accept="video/mp4,video/x-m4v,video/*" name="video" style="display:none" value=""></input>
+                </label>
+                <label id="filename" for="file-input" class="mdl-card__supporting-text mdl-color-text--grey-700">No File Selected</label>
             </div>
         </div>
         <div class="mdl-cell"></div>
@@ -113,7 +122,7 @@
 
             <div class="mdl-card__actions mdl-card--border">
                 <!--<div id="tt2" class="icon material-icons">print</div>-->
-                <div class="mdl-tooltip mdl-tooltip--large" for="crop-slider">
+                <div id="tooltip" class="mdl-tooltip mdl-tooltip--large" for="crop-slider">
                     <div id="slider-value" class="">
                         10%
                     </div>
@@ -125,10 +134,8 @@
                 </div>
             </div>
             <div class="mdl-card__supporting-text mdl-color-text--grey-500">
-                <label>
                     *This slider specifies how much of the video to crop out. The higher the number the more zoomed in the resulting video will look.
                     Stabilization creates black borders from the frame warping, so this is to reduce its visibility.
-                </label>
 
             </div>
         </div>
