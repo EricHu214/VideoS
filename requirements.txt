@@ -7,7 +7,7 @@ MarkupSafe==2.0.0a1
 numpy==1.18.4
 opencv-python==4.2.0.34
 prompt-toolkit==1.0.14
-Pygments==2.6.1
+Pygments==2.7.4
 PyInquirer==1.0.3
 python-dotenv==0.13.0
 regex==2020.5.14
